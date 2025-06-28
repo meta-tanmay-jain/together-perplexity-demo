@@ -1,11 +1,25 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:root@localhost:5432/demo"
+DATABASE_URL = "postgresql://postgres:root@localhost:5432/demo"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine)
+Base = declarative_base()
 
-SessionLocal = sessionmaker(autoflush=False,autocommit=False, bind=engine)
+class Query(Base):
+    __tablename__ = "queries"
+    
+    id = Column(Integer, primary_key=True)
+    prompt = Column(String, nullable=False)
+    response = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-base = declarative_base()
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

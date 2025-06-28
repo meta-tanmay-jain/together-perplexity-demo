@@ -1,59 +1,46 @@
 from langchain_together import ChatTogether
+from langchain.tools import tool
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
-from tool import perplexity_search_tool
+from perplexity import search_perplexity
 
 load_dotenv()
 
 llm = ChatTogether(
-        model="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-        temperature=0.1
+    model="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    temperature=0.1
 )
 
-tools = [perplexity_search_tool]
+@tool
+def perplexity_tool(query: str) -> str:
+    """Search for real-time real estate data"""
+    return search_perplexity(query)
 
-
-template = """You are "RE-Agent", an intelligent and trustworthy AI Real Estate Advisor. You are knowledgeable in all aspects of real estate including:
-
-- Property buying and selling
-- Land evaluation
-- Architecture and design
-- Construction quality and materials
-- Market pricing and negotiation
-- Legal considerations and regulations
-- Real estate investment strategy
-
-Your job is to help users make smart, confident, and well-informed decisions.
-
-User's Question:
-{user_query}
-
-Instructions:
-- Answer clearly, with practical advice.
-- Reference market conditions if available.
-- Include pros and cons when needed.
-- If location is mentioned, provide region-specific insights.
-- Do not speculate wildly; stick to facts and helpful reasoning.
-- If uncertain, suggest how the user might research further or who to contact.
-
-Respond below as the real estate advisor in markdown format:
-
-{agent_scratchpad}
-"""
-
-real_estate_prompt = PromptTemplate(
+prompt = PromptTemplate(
     input_variables=["user_query", "agent_scratchpad"],
-    template=template
+    template="""You are a Real Estate AI Advisor. Help users with:
+- Property buying/selling
+- Market analysis
+- Investment advice
+- Legal considerations
+
+User Question: {user_query}
+
+Provide clear, practical advice in markdown format.
+
+{agent_scratchpad}"""
 )
 
-
-
-def get_responce(query: str):
-  
-  agent = create_tool_calling_agent(llm,tools,real_estate_prompt)
-  agent_executor = AgentExecutor(agent=agent, tools=tools)
-
-  response = agent_executor.invoke({"user_query":query,"agent_scratchpad": ""})
-  
-  
+def get_response(query: str) -> str:
+    """Get AI response for real estate query"""
+    
+    agent = create_tool_calling_agent(llm, [perplexity_tool], prompt)
+    executor = AgentExecutor(agent=agent, tools=[perplexity_tool])
+    
+    result = executor.invoke({
+        "user_query": query,
+        "agent_scratchpad": ""
+    })
+    
+    return result["output"]

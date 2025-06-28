@@ -1,43 +1,36 @@
-from typing import List
-from fastapi import FastAPI, Depends, Path
+from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from database import engine, SessionLocal
-from models import base, QueryData
-from schema import QueryRequest, QueryResponce
-import llm
+from typing import List
 
+from database import engine, Base, Query, get_db
+from schema import QueryRequest, QueryResponse
+from llm import get_response
 
+Base.metadata.create_all(bind=engine)
 
-base.metadata.create_all(bind=engine)
+app = FastAPI(title="Real Estate AI Advisor")
 
-app = FastAPI()
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close
-
-@app.post("/get-response", response_model=List[QueryResponce])
-def generate_responce(user_query: QueryRequest, db:Session = Depends(get_db)):
+@app.post("/chat", response_model=QueryResponse)
+def chat(request: QueryRequest, db: Session = Depends(get_db)):
+    """Chat with the Real Estate AI Advisor"""
     
-    query_response = llm.get_responce(user_query.prompt)
-
-    response_text = query_response.choices[0].message.content 
+    ai_response = get_response(request.prompt)
     
-    new_query = QueryData(prompt = user_query.prompt,responce = response_text)
-    db.add(new_query)
+    query = Query(prompt=request.prompt, response=ai_response)
+    db.add(query)
     db.commit()
-    db.refresh(new_query)
-    return [new_query]
+    db.refresh(query)
     
-@app.get("/show-responses/{page}", response_model=List[QueryResponce])
-def get_responses(page: int = Path(..., ge=1),limit: int = 10, db:Session = Depends(get_db)):
+    return query
+
+@app.get("/history", response_model=List[QueryResponse])
+def get_history(page: int = 1, limit: int = 10, db: Session = Depends(get_db)):
+    """Get chat history with pagination"""
+    
     offset = (page - 1) * limit
-    responces = db.query(QueryData).offset(offset).limit(limit).all()
-    return responces
+    queries = db.query(Query).offset(offset).limit(limit).all()
+    return queries
 
-
-
+@app.get("/")
+def root():
+    return {"message": "Real Estate AI Advisor API"}

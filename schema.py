@@ -4,12 +4,11 @@ from datetime import datetime
 class QueryRequest(BaseModel):
     prompt: str
 
-
-class QueryResponce(QueryRequest):
+class QueryResponse(BaseModel):
     id: int
-    responce: str
+    prompt: str
+    response: str
     created_at: datetime
-
-    class config:
-        orm_mode = True
     
+    class Config:
+        from_attributes = True
